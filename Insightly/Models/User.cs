@@ -15,7 +15,6 @@ namespace Insightly.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsActive { get; set; } = true;
 
         public virtual List<Article> Articles { get; set; } = new();
         public virtual List<ArticleRead> ReadArticles { get; set; } = new();

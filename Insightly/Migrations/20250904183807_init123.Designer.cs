@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Insightly.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250904173020_AddUserProperties")]
-    partial class AddUserProperties
+    [Migration("20250904183807_init123")]
+    partial class init123
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
