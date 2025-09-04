@@ -124,7 +124,7 @@ namespace Insightly.Areas.Identity.Pages.Account
                             <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
                                 <h2 style='color: #333; text-align: center;'>Email Verification</h2>
                                 <p style='color: #666; font-size: 16px;'>Hello {user.Name},</p>
-                                <p style='color: #666; font-size: 16px;'>Thank you for registering with Articles Portal. Please use the following verification code to complete your registration:</p>
+                                <p style='color: #666; font-size: 16px;'>Thank you for registering with Insightly. Please use the following verification code to complete your registration:</p>
                                 <div style='background-color: #f8f9fb; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;'>
                                     <h1 style='color: #007bff; letter-spacing: 8px; font-size: 36px; margin: 0;'>{verificationCode}</h1>
                                 </div>
