@@ -48,6 +48,7 @@ namespace Insightly.Areas.Identity.Pages.Account
             public string UserId { get; set; }
             public string UserEmail { get; set; }
             public string ReturnUrl { get; set; }
+            public string Purpose { get; set; } = "EmailConfirmation"; // EmailConfirmation | PasswordReset
         }
 
         public async Task<IActionResult> OnGetAsync()
@@ -62,7 +63,8 @@ namespace Insightly.Areas.Identity.Pages.Account
             {
                 UserId = TempData["UserId"].ToString(),
                 UserEmail = TempData["UserEmail"].ToString(),
-                ReturnUrl = TempData["ReturnUrl"]?.ToString() ?? "~/"
+                ReturnUrl = TempData["ReturnUrl"]?.ToString() ?? "~/",
+                Purpose = TempData["Purpose"]?.ToString() ?? "EmailConfirmation"
             };
 
             UserEmail = Input.UserEmail;
@@ -71,6 +73,7 @@ namespace Insightly.Areas.Identity.Pages.Account
             TempData.Keep("UserId");
             TempData.Keep("UserEmail");
             TempData.Keep("ReturnUrl");
+            TempData.Keep("Purpose");
 
             return Page();
         }
@@ -83,20 +86,22 @@ namespace Insightly.Areas.Identity.Pages.Account
                 TempData.Keep("UserId");
                 TempData.Keep("UserEmail");
                 TempData.Keep("ReturnUrl");
+                TempData.Keep("Purpose");
                 return Page();
             }
 
             var userId = Input?.UserId ?? TempData["UserId"]?.ToString();
             var userEmail = Input?.UserEmail ?? TempData["UserEmail"]?.ToString();
             var returnUrl = Input?.ReturnUrl ?? TempData["ReturnUrl"]?.ToString() ?? "~/";
+            var purpose = Input?.Purpose ?? TempData["Purpose"]?.ToString() ?? "EmailConfirmation";
 
             if (string.IsNullOrEmpty(userId))
             {
                 return RedirectToPage("./Register");
             }
 
-            // Validate the verification code
-            var isValid = await _verificationCodeService.ValidateCodeAsync(userId, Input.VerificationCode);
+            // Validate the verification code for the given purpose
+            var isValid = await _verificationCodeService.ValidateCodeAsync(userId, Input.VerificationCode, purpose);
 
             if (isValid)
             {
@@ -104,19 +109,26 @@ namespace Insightly.Areas.Identity.Pages.Account
 
                 if (user != null)
                 {
-                    // Mark email as confirmed
+                    if (string.Equals(purpose, "PasswordReset", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Mark as verified for reset and redirect to reset page
+                        TempData["VerifiedForReset"] = true;
+                        TempData["UserId"] = userId;
+                        TempData.Keep("VerifiedForReset");
+                        TempData.Keep("UserId");
+                        return RedirectToPage("./ResetPassword");
+                    }
+
+                    // Default: Email confirmation
                     user.EmailConfirmed = true;
                     await _userManager.UpdateAsync(user);
 
                     _logger.LogInformation("User verified their email successfully.");
 
-                    // Sign in the user
                     await _signInManager.SignInAsync(user, isPersistent: false);
 
-                    // Clear TempData
                     TempData.Clear();
 
-                    // Show success message
                     TempData["SuccessMessage"] = "Your email has been verified successfully!";
 
                     return LocalRedirect(returnUrl);
@@ -131,6 +143,7 @@ namespace Insightly.Areas.Identity.Pages.Account
             TempData.Keep("UserId");
             TempData.Keep("UserEmail");
             TempData.Keep("ReturnUrl");
+            TempData.Keep("Purpose");
 
             return Page();
         }
@@ -150,10 +163,11 @@ namespace Insightly.Areas.Identity.Pages.Account
             if (user != null)
             {
                 // Invalidate old code
-                await _verificationCodeService.InvalidateCodeAsync(userId);
+                var purpose = Input?.Purpose ?? TempData["Purpose"]?.ToString() ?? "EmailConfirmation";
+                await _verificationCodeService.InvalidateCodeAsync(userId, purpose);
 
                 // Generate new code
-                var newCode = await _verificationCodeService.GenerateCodeAsync(userId);
+                var newCode = await _verificationCodeService.GenerateCodeAsync(userId, purpose);
 
                 // Send email with new code
                 var emailSubject = "New Verification Code";
@@ -170,6 +184,7 @@ namespace Insightly.Areas.Identity.Pages.Account
             Input.UserId = userId;
             Input.UserEmail = userEmail;
             Input.ReturnUrl = TempData["ReturnUrl"]?.ToString() ?? "~/";
+            Input.Purpose = TempData["Purpose"]?.ToString() ?? "EmailConfirmation";
 
             UserEmail = userEmail;
 
@@ -177,11 +192,12 @@ namespace Insightly.Areas.Identity.Pages.Account
             TempData.Keep("UserId");
             TempData.Keep("UserEmail");
             TempData.Keep("ReturnUrl");
+            TempData.Keep("Purpose");
 
             return Page();
         }
 
-        public async Task<IActionResult> OnGetResendCodeAsync(string userId, string userEmail, string returnUrl)
+        public async Task<IActionResult> OnGetResendCodeAsync(string userId, string userEmail, string returnUrl, string purpose)
         {
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(userEmail))
             {
@@ -191,8 +207,8 @@ namespace Insightly.Areas.Identity.Pages.Account
             var user = await _userManager.FindByIdAsync(userId);
             if (user != null)
             {
-                await _verificationCodeService.InvalidateCodeAsync(userId);
-                var newCode = await _verificationCodeService.GenerateCodeAsync(userId);
+                await _verificationCodeService.InvalidateCodeAsync(userId, string.IsNullOrEmpty(purpose) ? "EmailConfirmation" : purpose);
+                var newCode = await _verificationCodeService.GenerateCodeAsync(userId, string.IsNullOrEmpty(purpose) ? "EmailConfirmation" : purpose);
 
                 var emailSubject = "New Verification Code";
                 var emailBody = $@
@@ -203,17 +219,24 @@ namespace Insightly.Areas.Identity.Pages.Account
             }
 
             // Preserve values for page render
+            TempData["UserId"] = userId;
+            TempData["UserEmail"] = userEmail;
+            TempData["ReturnUrl"] = string.IsNullOrEmpty(returnUrl) ? "~/" : returnUrl;
+            TempData["Purpose"] = string.IsNullOrEmpty(purpose) ? "EmailConfirmation" : purpose;
+
             Input = new InputModel
             {
                 UserId = userId,
                 UserEmail = userEmail,
-                ReturnUrl = string.IsNullOrEmpty(returnUrl) ? "~/" : returnUrl
+                ReturnUrl = string.IsNullOrEmpty(returnUrl) ? "~/" : returnUrl,
+                Purpose = string.IsNullOrEmpty(purpose) ? "EmailConfirmation" : purpose
             };
             UserEmail = userEmail;
 
             TempData.Keep("UserId");
             TempData.Keep("UserEmail");
             TempData.Keep("ReturnUrl");
+            TempData.Keep("Purpose");
             return Page();
         }
     }
