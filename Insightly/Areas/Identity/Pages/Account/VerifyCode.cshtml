@@ -41,9 +41,9 @@
 
                         <div class="text-center">
                             <p class="mb-2 text-muted small">Didn't receive the code?</p>
-                            <button type="submit" asp-page-handler="ResendCode" class="btn btn-link p-0 text-decoration-none">
+                            <a asp-page-handler="ResendCode" asp-route-userId="@Model.Input?.UserId" asp-route-userEmail="@Model.Input?.UserEmail" asp-route-returnUrl="@Model.Input?.ReturnUrl" class="btn btn-link p-0 text-decoration-none">
                                 <i class="bi bi-arrow-clockwise me-1"></i>Resend Code
-                            </button>
+                            </a>
                         </div>
                     </form>
 

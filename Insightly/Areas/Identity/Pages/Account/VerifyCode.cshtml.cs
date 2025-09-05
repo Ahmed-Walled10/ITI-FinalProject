@@ -180,5 +180,41 @@ namespace Insightly.Areas.Identity.Pages.Account
 
             return Page();
         }
+
+        public async Task<IActionResult> OnGetResendCodeAsync(string userId, string userEmail, string returnUrl)
+        {
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(userEmail))
+            {
+                return RedirectToPage("./Register");
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user != null)
+            {
+                await _verificationCodeService.InvalidateCodeAsync(userId);
+                var newCode = await _verificationCodeService.GenerateCodeAsync(userId);
+
+                var emailSubject = "New Verification Code";
+                var emailBody = $@
+                    "<html>\n                    <body style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;'>\n                        <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>\n                            <h2 style='color: #333; text-align: center;'>New Verification Code</h2>\n                            <p style='color: #666; font-size: 16px;'>Hello {user.Name},</p>\n                            <p style='color: #666; font-size: 16px;'>Here is your new verification code:</p>\n                            <div style='background-color: #f8f9fb; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;'>\n                                <h1 style='color: #007bff; letter-spacing: 8px; font-size: 36px; margin: 0;'>{newCode}</h1>\n                            </div>\n                            <p style='color: #999; font-size: 14px; text-align: center;'>This code will expire in 15 minutes</p>\n                            <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>\n                            <p style='color: #999; font-size: 12px; text-align: center;'>If you didn't request this verification code, please ignore this email.</p>\n                        </div>\n                    </body>\n                    </html>";
+
+                await _emailSender.SendEmailAsync(userEmail, emailSubject, emailBody);
+                TempData["InfoMessage"] = "A new verification code has been sent to your email.";
+            }
+
+            // Preserve values for page render
+            Input = new InputModel
+            {
+                UserId = userId,
+                UserEmail = userEmail,
+                ReturnUrl = string.IsNullOrEmpty(returnUrl) ? "~/" : returnUrl
+            };
+            UserEmail = userEmail;
+
+            TempData.Keep("UserId");
+            TempData.Keep("UserEmail");
+            TempData.Keep("ReturnUrl");
+            return Page();
+        }
     }
 }
