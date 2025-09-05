@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model VerifyCodeModel
 @{
     ViewData["Title"] = "Verify Email";
@@ -29,6 +29,9 @@
                                 <input type="text" maxlength="1" class="code-digit form-control text-center" data-index="4" />
                             </div>
                             <input asp-for="Input.VerificationCode" type="hidden" />
+                            <input asp-for="Input.UserId" type="hidden" />
+                            <input asp-for="Input.UserEmail" type="hidden" />
+                            <input asp-for="Input.ReturnUrl" type="hidden" />
                             <span asp-validation-for="Input.VerificationCode" class="text-danger small text-center d-block mt-2"></span>
                         </div>
 

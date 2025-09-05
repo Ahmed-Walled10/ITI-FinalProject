@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using Insightly.Models;
@@ -45,6 +45,10 @@ namespace Insightly.Areas.Identity.Pages.Account
             [RegularExpression(@"^\d{5}$", ErrorMessage = "Verification code must be 5 digits")]
             [Display(Name = "Verification Code")]
             public string VerificationCode { get; set; }
+
+            public string UserId { get; set; }
+            public string UserEmail { get; set; }
+            public string ReturnUrl { get; set; }
         }
 
         public async Task<IActionResult> OnGetAsync()
@@ -55,7 +59,14 @@ namespace Insightly.Areas.Identity.Pages.Account
                 return RedirectToPage("./Register");
             }
 
-            UserEmail = TempData["UserEmail"].ToString();
+            Input = new InputModel
+            {
+                UserId = TempData["UserId"].ToString(),
+                UserEmail = TempData["UserEmail"].ToString(),
+                ReturnUrl = TempData["ReturnUrl"]?.ToString() ?? "~/"
+            };
+
+            UserEmail = Input.UserEmail;
 
             // Keep the data for potential resubmission
             TempData.Keep("UserId");
@@ -69,16 +80,16 @@ namespace Insightly.Areas.Identity.Pages.Account
         {
             if (!ModelState.IsValid)
             {
-                UserEmail = TempData["UserEmail"]?.ToString();
+                UserEmail = Input?.UserEmail ?? TempData["UserEmail"]?.ToString();
                 TempData.Keep("UserId");
                 TempData.Keep("UserEmail");
                 TempData.Keep("ReturnUrl");
                 return Page();
             }
 
-            var userId = TempData["UserId"]?.ToString();
-            var userEmail = TempData["UserEmail"]?.ToString();
-            var returnUrl = TempData["ReturnUrl"]?.ToString() ?? "~/";
+            var userId = Input?.UserId ?? TempData["UserId"]?.ToString();
+            var userEmail = Input?.UserEmail ?? TempData["UserEmail"]?.ToString();
+            var returnUrl = Input?.ReturnUrl ?? TempData["ReturnUrl"]?.ToString() ?? "~/";
 
             if (string.IsNullOrEmpty(userId))
             {
@@ -127,8 +138,8 @@ namespace Insightly.Areas.Identity.Pages.Account
 
         public async Task<IActionResult> OnPostResendCodeAsync()
         {
-            var userId = TempData["UserId"]?.ToString();
-            var userEmail = TempData["UserEmail"]?.ToString();
+            var userId = Input?.UserId ?? TempData["UserId"]?.ToString();
+            var userEmail = Input?.UserEmail ?? TempData["UserEmail"]?.ToString();
 
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(userEmail))
             {
