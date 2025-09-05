@@ -32,6 +32,7 @@
                             <input asp-for="Input.UserId" type="hidden" />
                             <input asp-for="Input.UserEmail" type="hidden" />
                             <input asp-for="Input.ReturnUrl" type="hidden" />
+                            <input asp-for="Input.Purpose" type="hidden" />
                             <span asp-validation-for="Input.VerificationCode" class="text-danger small text-center d-block mt-2"></span>
                         </div>
 
@@ -41,9 +42,9 @@
 
                         <div class="text-center">
                             <p class="mb-2 text-muted small">Didn't receive the code?</p>
-                            <a asp-page-handler="ResendCode" asp-route-userId="@Model.Input?.UserId" asp-route-userEmail="@Model.Input?.UserEmail" asp-route-returnUrl="@Model.Input?.ReturnUrl" class="btn btn-link p-0 text-decoration-none">
+                            <button type="submit" asp-page-handler="ResendCode" class="btn btn-link p-0 text-decoration-none">
                                 <i class="bi bi-arrow-clockwise me-1"></i>Resend Code
-                            </a>
+                            </button>
                         </div>
                     </form>
 
