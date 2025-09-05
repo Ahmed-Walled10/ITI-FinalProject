@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
 
@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
+using Insightly.Services;
 
 namespace Insightly.Areas.Identity.Pages.Account
 {
@@ -22,11 +23,17 @@ namespace Insightly.Areas.Identity.Pages.Account
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<LoginModel> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IVerificationCodeService _verificationCodeService;
+        private readonly IEmailSender _emailSender;
 
-        public LoginModel(SignInManager<ApplicationUser> signInManager, ILogger<LoginModel> logger)
+        public LoginModel(SignInManager<ApplicationUser> signInManager, ILogger<LoginModel> logger, UserManager<ApplicationUser> userManager, IVerificationCodeService verificationCodeService, IEmailSender emailSender)
         {
             _signInManager = signInManager;
             _logger = logger;
+            _userManager = userManager;
+            _verificationCodeService = verificationCodeService;
+            _emailSender = emailSender;
         }
 
         /// <summary>
@@ -110,8 +117,39 @@ namespace Insightly.Areas.Identity.Pages.Account
 
             if (ModelState.IsValid)
             {
-                // This doesn't count login failures towards account lockout
-                // To enable password failures to trigger account lockout, set lockoutOnFailure: true
+                // First validate credentials without signing in
+                var user = await _userManager.FindByEmailAsync(Input.Email);
+                if (user != null)
+                {
+                    var passwordValid = await _userManager.CheckPasswordAsync(user, Input.Password);
+                    if (passwordValid)
+                    {
+                        if (!user.EmailConfirmed)
+                        {
+                            // Send or reuse verification code and redirect to VerifyCode
+                            var code = await _verificationCodeService.GetOrCreateCodeAsync(user.Id, "EmailConfirmation");
+                            var emailSubject = "Email Verification Code";
+                            var emailBody = $@"<html>\n<body style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;'>\n<div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>\n<h2 style='color: #333; text-align: center;'>Email Verification</h2>\n<p style='color: #666; font-size: 16px;'>Here is your verification code:</p>\n<div style='background-color: #f8f9fb; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;'>\n<h1 style='color: #007bff; letter-spacing: 8px; font-size: 36px; margin: 0;'>{code}</h1>\n</div>\n<p style='color: #999; font-size: 14px; text-align: center;'>This code will expire in 15 minutes</p>\n</div>\n</body>\n</html>";
+                            await _emailSender.SendEmailAsync(user.Email, emailSubject, emailBody);
+
+                            TempData["UserId"] = user.Id;
+                            TempData["UserEmail"] = user.Email;
+                            TempData["ReturnUrl"] = returnUrl;
+                            TempData["Purpose"] = "EmailConfirmation";
+                            return RedirectToPage("./VerifyCode");
+                        }
+
+                        // Email confirmed, proceed to sign in
+                        var resultConfirmed = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+                        if (resultConfirmed.Succeeded)
+                        {
+                            _logger.LogInformation("User logged in.");
+                            return LocalRedirect(returnUrl);
+                        }
+                    }
+                }
+
+                // Fall back to normal sign-in for error handling, lockout, etc.
                 var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
                 if (result.Succeeded)
                 {

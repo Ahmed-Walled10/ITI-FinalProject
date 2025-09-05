@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -27,6 +27,16 @@ namespace Insightly.Services
             _cache.Set(cacheKey, code, cacheOptions);
 
             return await Task.FromResult(code);
+        }
+
+        public async Task<string> GetOrCreateCodeAsync(string userId, string purpose = "EmailConfirmation")
+        {
+            var cacheKey = $"VerificationCode_{purpose}_{userId}";
+            if (_cache.TryGetValue(cacheKey, out string cached))
+            {
+                return await Task.FromResult(cached);
+            }
+            return await GenerateCodeAsync(userId, purpose);
         }
 
         public async Task<bool> ValidateCodeAsync(string userId, string code, string purpose = "EmailConfirmation")
