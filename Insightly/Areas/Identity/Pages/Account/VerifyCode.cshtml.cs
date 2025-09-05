@@ -45,7 +45,6 @@ namespace Insightly.Areas.Identity.Pages.Account
             [RegularExpression(@"^\d{5}$", ErrorMessage = "Verification code must be 5 digits")]
             [Display(Name = "Verification Code")]
             public string VerificationCode { get; set; }
-
             public string UserId { get; set; }
             public string UserEmail { get; set; }
             public string ReturnUrl { get; set; }
@@ -158,27 +157,19 @@ namespace Insightly.Areas.Identity.Pages.Account
 
                 // Send email with new code
                 var emailSubject = "New Verification Code";
-                var emailBody = $@"
-                    <html>
-                    <body style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;'>
-                        <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
-                            <h2 style='color: #333; text-align: center;'>New Verification Code</h2>
-                            <p style='color: #666; font-size: 16px;'>Hello {user.Name},</p>
-                            <p style='color: #666; font-size: 16px;'>Here is your new verification code:</p>
-                            <div style='background-color: #f8f9fb; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;'>
-                                <h1 style='color: #007bff; letter-spacing: 8px; font-size: 36px; margin: 0;'>{newCode}</h1>
-                            </div>
-                            <p style='color: #999; font-size: 14px; text-align: center;'>This code will expire in 15 minutes</p>
-                            <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
-                            <p style='color: #999; font-size: 12px; text-align: center;'>If you didn't request this verification code, please ignore this email.</p>
-                        </div>
-                    </body>
-                    </html>";
+                var emailBody = $@
+                    "<html>\n                    <body style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;'>\n                        <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>\n                            <h2 style='color: #333; text-align: center;'>New Verification Code</h2>\n                            <p style='color: #666; font-size: 16px;'>Hello {user.Name},</p>\n                            <p style='color: #666; font-size: 16px;'>Here is your new verification code:</p>\n                            <div style='background-color: #f8f9fb; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;'>\n                                <h1 style='color: #007bff; letter-spacing: 8px; font-size: 36px; margin: 0;'>{newCode}</h1>\n                            </div>\n                            <p style='color: #999; font-size: 14px; text-align: center;'>This code will expire in 15 minutes</p>\n                            <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>\n                            <p style='color: #999; font-size: 12px; text-align: center;'>If you didn't request this verification code, please ignore this email.</p>\n                        </div>\n                    </body>\n                    </html>";
 
                 await _emailSender.SendEmailAsync(userEmail, emailSubject, emailBody);
 
                 TempData["InfoMessage"] = "A new verification code has been sent to your email.";
             }
+
+            // Ensure Input carries identity values for subsequent posts
+            Input = Input ?? new InputModel();
+            Input.UserId = userId;
+            Input.UserEmail = userEmail;
+            Input.ReturnUrl = TempData["ReturnUrl"]?.ToString() ?? "~/";
 
             UserEmail = userEmail;
 
