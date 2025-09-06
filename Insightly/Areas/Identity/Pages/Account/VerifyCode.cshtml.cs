@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using Insightly.Models;
@@ -80,8 +80,10 @@ namespace Insightly.Areas.Identity.Pages.Account
             var userEmail = TempData["UserEmail"]?.ToString();
             var returnUrl = TempData["ReturnUrl"]?.ToString() ?? "~/";
 
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(userEmail))
             {
+                _logger.LogWarning("Missing user data in TempData when verifying code");
+                TempData["ErrorMessage"] = "Session expired. Please register again.";
                 return RedirectToPage("./Register");
             }
 
@@ -98,12 +100,12 @@ namespace Insightly.Areas.Identity.Pages.Account
                     user.EmailConfirmed = true;
                     await _userManager.UpdateAsync(user);
 
-                    _logger.LogInformation("User verified their email successfully.");
+                    _logger.LogInformation("User {UserId} verified their email successfully", userId);
 
                     // Sign in the user
                     await _signInManager.SignInAsync(user, isPersistent: false);
 
-                    // Clear TempData
+                    // Clear TempData since verification is complete
                     TempData.Clear();
 
                     // Show success message
@@ -111,10 +113,17 @@ namespace Insightly.Areas.Identity.Pages.Account
 
                     return LocalRedirect(returnUrl);
                 }
+                else
+                {
+                    _logger.LogError("User not found after successful code validation for userId: {UserId}", userId);
+                    TempData["ErrorMessage"] = "An error occurred during verification. Please try registering again.";
+                    return RedirectToPage("./Register");
+                }
             }
 
-            // Invalid code
-            ModelState.AddModelError(string.Empty, "Invalid verification code. Please try again.");
+            // Invalid code - DO NOT generate a new code automatically
+            _logger.LogWarning("Invalid verification code entered for userId: {UserId}", userId);
+            ModelState.AddModelError(string.Empty, "Invalid verification code. Please check your email and try again, or click 'Resend Code' to get a new one.");
             UserEmail = userEmail;
 
             // Keep the data for retry
@@ -166,17 +175,24 @@ namespace Insightly.Areas.Identity.Pages.Account
 
                 await _emailSender.SendEmailAsync(userEmail, emailSubject, emailBody);
 
+                _logger.LogInformation("New verification code sent to user {UserId}", userId);
                 TempData["InfoMessage"] = "A new verification code has been sent to your email.";
+            }
+            else
+            {
+                _logger.LogWarning("User not found when trying to resend verification code for userId: {UserId}", userId);
+                TempData["ErrorMessage"] = "Unable to resend verification code. Please try registering again.";
             }
 
             UserEmail = userEmail;
 
-            // Keep the data
+            // Keep the data for the page reload
             TempData.Keep("UserId");
             TempData.Keep("UserEmail");
             TempData.Keep("ReturnUrl");
 
-            return Page();
+            // Use RedirectToPage to prevent the URL from showing the handler
+            return RedirectToPage("./VerifyCode");
         }
     }
 }
