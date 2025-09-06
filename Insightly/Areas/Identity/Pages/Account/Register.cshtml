@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model RegisterModel
 @{
     ViewData["Title"] = "Register";
@@ -56,6 +56,26 @@
                             <p class="mb-0">Already have an account? <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl" class="text-decoration-none">Login now</a></p>
                         </div>
                     </form>
+
+                    <hr class="my-4" />
+
+                    <div>
+                        <h5 class="mb-3">Already registered?</h5>
+                        <p class="text-muted small mb-3">Enter your email to verify your account using the code you received.</p>
+                        <form method="post" asp-page-handler="Verify" class="row g-2 align-items-center">
+                            <div class="col-12 col-md-8">
+                                <input asp-for="VerificationEmail" class="form-control" type="email" placeholder="name@example.com" />
+                            </div>
+                            <div class="col-12 col-md-4 d-grid">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="bi bi-shield-check me-1"></i>Verify Code
+                                </button>
+                            </div>
+                            <div class="col-12">
+                                <span asp-validation-for="VerificationEmail" class="text-danger small"></span>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
