@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
 
@@ -56,6 +56,11 @@ namespace Insightly.Areas.Identity.Pages.Account
         public string ReturnUrl { get; set; }
 
         public IList<AuthenticationScheme> ExternalLogins { get; set; }
+
+        [BindProperty]
+        [EmailAddress]
+        [Display(Name = "Email to verify")]
+        public string VerificationEmail { get; set; }
 
         public class InputModel
         {
@@ -154,6 +159,38 @@ namespace Insightly.Areas.Identity.Pages.Account
 
             // If we got this far, something failed, redisplay form
             return Page();
+        }
+
+        public async Task<IActionResult> OnPostVerifyAsync(string returnUrl = null)
+        {
+            returnUrl ??= Url.Content("~/");
+
+            if (string.IsNullOrWhiteSpace(VerificationEmail))
+            {
+                ModelState.AddModelError("VerificationEmail", "Please enter your email.");
+                return Page();
+            }
+
+            var user = await _userManager.FindByEmailAsync(VerificationEmail);
+
+            if (user == null)
+            {
+                ModelState.AddModelError("VerificationEmail", "No account found for this email.");
+                return Page();
+            }
+
+            if (user.EmailConfirmed)
+            {
+                ModelState.AddModelError("VerificationEmail", "This email is already verified. You can sign in.");
+                return Page();
+            }
+
+            var userId = await _userManager.GetUserIdAsync(user);
+            TempData["UserId"] = userId;
+            TempData["UserEmail"] = user.Email;
+            TempData["ReturnUrl"] = returnUrl;
+
+            return RedirectToPage("VerifyCode");
         }
 
         private ApplicationUser CreateUser()
