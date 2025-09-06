@@ -1,17 +1,20 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace Insightly.Services
 {
     public class VerificationCodeService : IVerificationCodeService
     {
         private readonly IMemoryCache _cache;
+        private readonly ILogger<VerificationCodeService> _logger;
         private readonly Random _random = new Random();
 
-        public VerificationCodeService(IMemoryCache cache)
+        public VerificationCodeService(IMemoryCache cache, ILogger<VerificationCodeService> logger)
         {
             _cache = cache;
+            _logger = logger;
         }
 
         public async Task<string> GenerateCodeAsync(string userId, string purpose = "EmailConfirmation")
@@ -25,6 +28,8 @@ namespace Insightly.Services
                 .SetAbsoluteExpiration(TimeSpan.FromMinutes(15));
 
             _cache.Set(cacheKey, code, cacheOptions);
+            
+            _logger.LogInformation("Generated new verification code for userId: {UserId}, purpose: {Purpose}", userId, purpose);
 
             return await Task.FromResult(code);
         }
@@ -33,14 +38,23 @@ namespace Insightly.Services
         {
             var cacheKey = $"VerificationCode_{purpose}_{userId}";
 
-            if (_cache.TryGetValue(cacheKey, out string cachedCode))
+            if (_cache.TryGetValue(cacheKey, out string? cachedCode))
             {
                 if (cachedCode == code)
                 {
                     // Remove the code after successful validation
                     _cache.Remove(cacheKey);
+                    _logger.LogInformation("Successfully validated verification code for userId: {UserId}, purpose: {Purpose}", userId, purpose);
                     return await Task.FromResult(true);
                 }
+                else
+                {
+                    _logger.LogWarning("Invalid verification code entered for userId: {UserId}, purpose: {Purpose}", userId, purpose);
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No verification code found or expired for userId: {UserId}, purpose: {Purpose}", userId, purpose);
             }
 
             return await Task.FromResult(false);
@@ -50,6 +64,7 @@ namespace Insightly.Services
         {
             var cacheKey = $"VerificationCode_{purpose}_{userId}";
             _cache.Remove(cacheKey);
+            _logger.LogInformation("Invalidated verification code for userId: {UserId}, purpose: {Purpose}", userId, purpose);
             await Task.CompletedTask;
         }
     }

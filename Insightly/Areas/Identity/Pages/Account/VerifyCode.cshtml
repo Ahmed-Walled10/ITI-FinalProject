@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model VerifyCodeModel
 @{
     ViewData["Title"] = "Verify Email";
@@ -19,6 +19,20 @@
 
                     <form method="post" id="verifyForm">
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3" role="alert"></div>
+                        
+                        @if (TempData["InfoMessage"] != null)
+                        {
+                            <div class="alert alert-info mb-3" role="alert">
+                                <i class="bi bi-info-circle me-2"></i>@TempData["InfoMessage"]
+                            </div>
+                        }
+                        
+                        @if (TempData["ErrorMessage"] != null)
+                        {
+                            <div class="alert alert-danger mb-3" role="alert">
+                                <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+                            </div>
+                        }
 
                         <div class="code-input-container mb-4">
                             <div class="code-inputs d-flex justify-content-center gap-2">
@@ -38,7 +52,7 @@
 
                         <div class="text-center">
                             <p class="mb-2 text-muted small">Didn't receive the code?</p>
-                            <button type="submit" asp-page-handler="ResendCode" class="btn btn-link p-0 text-decoration-none">
+                            <button type="submit" asp-page-handler="ResendCode" class="btn btn-link p-0 text-decoration-none" id="resendBtn">
                                 <i class="bi bi-arrow-clockwise me-1"></i>Resend Code
                             </button>
                         </div>
@@ -132,6 +146,32 @@
 
             // Auto-focus first input
             codeInputs[0].focus();
+            
+            // Handle resend button to prevent multiple clicks
+            const resendBtn = document.getElementById('resendBtn');
+            if (resendBtn) {
+                resendBtn.addEventListener('click', function(e) {
+                    // Disable the button temporarily to prevent multiple clicks
+                    this.disabled = true;
+                    this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Sending...';
+                    
+                    // Re-enable after 3 seconds in case of error
+                    setTimeout(() => {
+                        this.disabled = false;
+                        this.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Resend Code';
+                    }, 3000);
+                });
+            }
+            
+            // Clear input fields if there's an error message
+            const errorAlert = document.querySelector('.alert-danger');
+            if (errorAlert && errorAlert.textContent.includes('Invalid verification code')) {
+                codeInputs.forEach(input => {
+                    input.value = '';
+                });
+                hiddenInput.value = '';
+                codeInputs[0].focus();
+            }
         });
     </script>
 }
