@@ -46,16 +46,17 @@
                             <span asp-validation-for="Input.VerificationCode" class="text-danger small text-center d-block mt-2"></span>
                         </div>
 
-                        <button type="submit" class="w-100 btn btn-lg btn-primary mb-3">
+                        <button type="submit" class="w-100 btn btn-lg btn-primary mb-3" name="handler" value="">
                             <i class="bi bi-check-circle me-1"></i>Verify Email
                         </button>
+                    </form>
 
-                        <div class="text-center">
-                            <p class="mb-2 text-muted small">Didn't receive the code?</p>
-                            <button type="submit" asp-page-handler="ResendCode" class="btn btn-link p-0 text-decoration-none" id="resendBtn">
-                                <i class="bi bi-arrow-clockwise me-1"></i>Resend Code
-                            </button>
-                        </div>
+                    <!-- Separate form for resend to avoid conflicts -->
+                    <form method="post" class="text-center">
+                        <p class="mb-2 text-muted small">Didn't receive the code?</p>
+                        <button type="submit" asp-page-handler="ResendCode" class="btn btn-link p-0 text-decoration-none" id="resendBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Resend Code
+                        </button>
                     </form>
 
                     <div class="mt-4 text-center">

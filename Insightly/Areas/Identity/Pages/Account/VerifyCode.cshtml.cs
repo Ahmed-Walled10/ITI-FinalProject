@@ -52,16 +52,21 @@ namespace Insightly.Areas.Identity.Pages.Account
             // Get user information from TempData
             if (TempData["UserId"] == null || TempData["UserEmail"] == null)
             {
+                _logger.LogWarning("OnGet: Missing user data in TempData, redirecting to Register");
                 return RedirectToPage("./Register");
             }
 
-            UserEmail = TempData["UserEmail"].ToString();
+            UserEmail = TempData["UserEmail"]?.ToString() ?? "";
+            
+            // Preserve the data for form submissions
+            var userId = TempData["UserId"]?.ToString();
+            var returnUrl = TempData["ReturnUrl"]?.ToString();
+            
+            TempData["UserId"] = userId;
+            TempData["UserEmail"] = UserEmail;
+            TempData["ReturnUrl"] = returnUrl;
 
-            // Keep the data for potential resubmission
-            TempData.Keep("UserId");
-            TempData.Keep("UserEmail");
-            TempData.Keep("ReturnUrl");
-
+            _logger.LogInformation("VerifyCode page loaded for user email: {Email}", UserEmail);
             return Page();
         }
 
@@ -124,12 +129,12 @@ namespace Insightly.Areas.Identity.Pages.Account
             // Invalid code - DO NOT generate a new code automatically
             _logger.LogWarning("Invalid verification code entered for userId: {UserId}", userId);
             ModelState.AddModelError(string.Empty, "Invalid verification code. Please check your email and try again, or click 'Resend Code' to get a new one.");
+            
+            // Preserve data and return to the same page
             UserEmail = userEmail;
-
-            // Keep the data for retry
-            TempData.Keep("UserId");
-            TempData.Keep("UserEmail");
-            TempData.Keep("ReturnUrl");
+            TempData["UserId"] = userId;
+            TempData["UserEmail"] = userEmail;
+            TempData["ReturnUrl"] = TempData["ReturnUrl"];
 
             return Page();
         }
@@ -141,6 +146,7 @@ namespace Insightly.Areas.Identity.Pages.Account
 
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(userEmail))
             {
+                _logger.LogWarning("ResendCode: Missing user data in TempData");
                 return RedirectToPage("./Register");
             }
 
@@ -148,35 +154,51 @@ namespace Insightly.Areas.Identity.Pages.Account
 
             if (user != null)
             {
-                // Invalidate old code
-                await _verificationCodeService.InvalidateCodeAsync(userId);
+                try
+                {
+                    // Invalidate old code
+                    await _verificationCodeService.InvalidateCodeAsync(userId);
 
-                // Generate new code
-                var newCode = await _verificationCodeService.GenerateCodeAsync(userId);
+                    // Generate new code
+                    var newCode = await _verificationCodeService.GenerateCodeAsync(userId);
 
-                // Send email with new code
-                var emailSubject = "New Verification Code";
-                var emailBody = $@"
-                    <html>
-                    <body style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;'>
-                        <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
-                            <h2 style='color: #333; text-align: center;'>New Verification Code</h2>
-                            <p style='color: #666; font-size: 16px;'>Hello {user.Name},</p>
-                            <p style='color: #666; font-size: 16px;'>Here is your new verification code:</p>
-                            <div style='background-color: #f8f9fb; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;'>
-                                <h1 style='color: #007bff; letter-spacing: 8px; font-size: 36px; margin: 0;'>{newCode}</h1>
+                    // Send email with new code
+                    var emailSubject = "New Verification Code";
+                    var emailBody = $@"
+                        <html>
+                        <body style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;'>
+                            <div style='max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                                <h2 style='color: #333; text-align: center;'>New Verification Code</h2>
+                                <p style='color: #666; font-size: 16px;'>Hello {user.Name},</p>
+                                <p style='color: #666; font-size: 16px;'>Here is your new verification code:</p>
+                                <div style='background-color: #f8f9fb; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;'>
+                                    <h1 style='color: #007bff; letter-spacing: 8px; font-size: 36px; margin: 0;'>{newCode}</h1>
+                                </div>
+                                <p style='color: #999; font-size: 14px; text-align: center;'>This code will expire in 15 minutes</p>
+                                <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+                                <p style='color: #999; font-size: 12px; text-align: center;'>If you didn't request this verification code, please ignore this email.</p>
                             </div>
-                            <p style='color: #999; font-size: 14px; text-align: center;'>This code will expire in 15 minutes</p>
-                            <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
-                            <p style='color: #999; font-size: 12px; text-align: center;'>If you didn't request this verification code, please ignore this email.</p>
-                        </div>
-                    </body>
-                    </html>";
+                        </body>
+                        </html>";
 
-                await _emailSender.SendEmailAsync(userEmail, emailSubject, emailBody);
+                    await _emailSender.SendEmailAsync(userEmail, emailSubject, emailBody);
 
-                _logger.LogInformation("New verification code sent to user {UserId}", userId);
-                TempData["InfoMessage"] = "A new verification code has been sent to your email.";
+                    _logger.LogInformation("New verification code sent to user {UserId}", userId);
+                    
+                    // Set success message and preserve data
+                    TempData["InfoMessage"] = "A new verification code has been sent to your email.";
+                    TempData["UserId"] = userId;
+                    TempData["UserEmail"] = userEmail;
+                    TempData["ReturnUrl"] = TempData["ReturnUrl"];
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending verification code to user {UserId}", userId);
+                    TempData["ErrorMessage"] = "Failed to send verification code. Please try again.";
+                    TempData.Keep("UserId");
+                    TempData.Keep("UserEmail");
+                    TempData.Keep("ReturnUrl");
+                }
             }
             else
             {
@@ -184,15 +206,8 @@ namespace Insightly.Areas.Identity.Pages.Account
                 TempData["ErrorMessage"] = "Unable to resend verification code. Please try registering again.";
             }
 
-            UserEmail = userEmail;
-
-            // Keep the data for the page reload
-            TempData.Keep("UserId");
-            TempData.Keep("UserEmail");
-            TempData.Keep("ReturnUrl");
-
-            // Use RedirectToPage to prevent the URL from showing the handler
-            return RedirectToPage("./VerifyCode");
+            // Always redirect to clean URL - this is the key fix
+            return RedirectToPage();
         }
     }
 }
